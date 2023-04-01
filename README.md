@@ -280,6 +280,14 @@ public class Category {
 
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Product> products = new ArrayList<>();
+    
+    //auto update null khi xoa category
+    @PreRemove
+    private void preRemove() {
+        for (Product product : products) {
+            product.setCategory(null);
+        }
+    }
 }
 ```
 ```java
