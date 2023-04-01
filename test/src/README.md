@@ -276,7 +276,7 @@ public class Category {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
-    private Integer id;
+    private Long id;
 
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Product> products = new ArrayList<>();
@@ -289,6 +289,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 import javax.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
@@ -298,10 +300,187 @@ public class Product {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
-    private Integer id;
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     private Category category;
+
+    @ManyToMany
+    @JoinTable(
+            name = "product_tag",
+            joinColumns = @JoinColumn(name = "product_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id"))
+    private List<Tag> tags = new ArrayList<>();
+}
+```
+```java
+package com.example.test.entity;
+
+import lombok.Getter;
+import lombok.Setter;
+
+import javax.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
+
+@Getter
+@Setter
+@Entity
+@Table(name = "tag")
+public class Tag {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id", nullable = false)
+    private Long id;
+
+    @ManyToMany
+    @JoinTable(
+            name = "product_tag",
+            joinColumns = @JoinColumn(name = "product_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id"))
+    private List<Tag> tags = new ArrayList<>();
+
+}
+```
+
+## Câu 12
+
+Trả lời:
+```java
+package com.example.test.entity;
+
+import lombok.Getter;
+import lombok.Setter;
+
+import javax.persistence.*;
+
+@Getter
+@Setter
+@Entity
+@Table(name = "user")
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id", nullable = false)
+    private Long id;
+
+    @Column(name = "name")
+    private String name;
+    @Column(name = "email")
+    private String email;
+    @Column(name = "password")
+    private String password;
+}
+```
+```java
+package com.example.test.projection;
+
+public interface UserProjection {
+    Long getId();
+    String getName();
+    String getEmail();
+}
+```
+```java
+package com.example.test.repository;
+
+import com.example.test.dto.UserDto;
+import com.example.test.entity.User;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+
+import java.util.List;
+import com.example.test.projection.UserProjection;
+
+public interface UserRepository extends JpaRepository<User, Long> {
+
+    @Query("select new demojpa.demojpa.dto.UserDto(u.id, u.name, u.email) from User u")
+    List<UserDto> findAllUserDto();
+
+    @Query(nativeQuery = true, name = "getUserDtoUsingNativeQuery")
+    List<UserDto> getUserDtoUsingNativeQuery();
+
+    List<UserProjection> findAllProjectedBy();
+
+}
+```
+dùng service để lấy kết quả
+```java
+package com.example.test.service;
+
+import com.example.test.dto.UserDto;
+import com.example.test.entity.Employee;
+import com.example.test.entity.User;
+import com.example.test.projection.UserProjection;
+import com.example.test.repository.UserRepository;
+import lombok.AllArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@AllArgsConstructor
+public class UserService {
+    @Autowired
+    UserRepository userRepository;
+
+    //Method query + Convert to Dto
+    public List<UserDto> findAllUsers1() {
+        List<User> users = userRepository.findAll();
+        List<UserDto> userDtos = new ArrayList<>();
+        for (User user : users) {
+            UserDto userDto = new UserDto(user.getId(), user.getName(), user.getEmail());
+            userDtos.add(userDto);
+        }
+        return userDtos;
+    }
+    //JPQL
+    public List<UserDto> findAllUsers2() {
+        return userRepository.findAllUserDto();
+    }
+    //Native Query
+    public List<UserDto> findAllUsers3() {
+        List<UserDto> userDtos = userRepository.getUserDtoUsingNativeQuery();
+        return userDtos;
+    }
+
+    //Projection
+    public List<UserDto> findAllUsers4() {
+        List<UserProjection> users = userRepository.findAllProjectedBy();
+        List<UserDto> userDtos = new ArrayList<>();
+        for (UserProjection userProjection : users) {
+            UserDto userDto = new UserDto(userProjection.getId(), userProjection.getName(), userProjection.getEmail());
+            userDtos.add(userDto);
+        }
+        return userDtos;
+    }
+}
+```
+
+## Câu 13
+
+```java
+package com.example.test.entity;
+
+import lombok.*;
+
+import javax.persistence.*;
+import java.util.UUID;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name="post")
+public class Post {
+    @Id
+    private String id;
+    private String title;
+
+    public static String generateId() {
+        return UUID.randomUUID().toString();
+    }
 }
 ```
